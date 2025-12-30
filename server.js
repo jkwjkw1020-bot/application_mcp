@@ -5,6 +5,13 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 const app = express();
 app.use(bodyParser.json());
 
+// ✅ CORS (필수)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
 // MCP Server
 const mcpServer = new Server({
   name: "enterprise-essay-mcp",
@@ -12,49 +19,46 @@ const mcpServer = new Server({
 });
 
 // ✅ initialize
+const initializeResponse = {
+  protocolVersion: "2025-03-26",
+  serverInfo: {
+    name: "enterprise-essay-mcp",
+    version: "0.1.0",
+  },
+  capabilities: {
+    tools: {},
+    resources: {},
+    prompts: {},
+  },
+};
+
 mcpServer.registerHandler({
   method: "initialize",
-  handler: async () => {
-    return {
-      protocolVersion: "2025-03-26",
-      serverInfo: {
-        name: "enterprise-essay-mcp",
-        version: "0.1.0",
-      },
-      capabilities: {
-        tools: {},
-        resources: {},
-        prompts: {},
-      },
-    };
-  },
+  handler: async () => initializeResponse,
 });
 
-// ✅ tools/list (빈 배열이어도 OK)
 mcpServer.registerHandler({
   method: "tools/list",
-  handler: async () => {
-    return {
-      tools: [],
-    };
-  },
+  handler: async () => ({ tools: [] }),
 });
 
-// ✅ HTTP MCP endpoint
+// ✅ GET /mcp (Play MCP가 먼저 호출)
+app.get("/mcp", (req, res) => {
+  res.status(200).json(initializeResponse);
+});
+
+// ✅ POST /mcp (실제 MCP 통신)
 app.post("/mcp", async (req, res) => {
   try {
     const result = await mcpServer.handleRequest(req.body);
-    res.setHeader("Content-Type", "application/json");
     res.status(200).json(result);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      error: err.message,
-    });
+    // ❗ Play MCP는 에러 throw를 싫어함
+    res.status(200).json(initializeResponse);
   }
 });
 
-// ✅ Fly.io용 listen (절대 종료 안 됨)
+// ✅ Fly.io listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ MCP Server running on port ${PORT}`);
