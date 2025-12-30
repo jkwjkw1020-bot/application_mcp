@@ -190,9 +190,9 @@ const toolsList = [
 ];
 
 // Initialize 핸들러 등록
-server.setRequestHandler(
-  { method: 'initialize' },
-  async () => ({
+server.setRequestHandler({
+  method: 'initialize',
+  handler: async (request) => ({
     protocolVersion: '2025-03-26',
     serverInfo: {
       name: 'enterprise-essay-expert-mcp',
@@ -204,105 +204,105 @@ server.setRequestHandler(
       prompts: {}
     }
   })
-);
+});
 
 // Tools 목록 핸들러 등록
-server.setRequestHandler(
-  { method: 'tools/list' },
-  async () => ({
+server.setRequestHandler({
+  method: 'tools/list',
+  handler: async (request) => ({
     tools: toolsList
   })
-);
+});
 
 // Tool 실행 핸들러 등록
-server.setRequestHandler(
-  { method: 'tools/call' },
-  async (request) => {
-  const { name, arguments: args } = request.params;
+server.setRequestHandler({
+  method: 'tools/call',
+  handler: async (request) => {
+    const { name, arguments: args } = request.params;
 
-  try {
-    switch (name) {
-      case 'analyze_enterprise_company':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(await analyzeEnterpriseCompany(args), null, 2)
-            }
-          ]
-        };
+    try {
+      switch (name) {
+        case 'analyze_enterprise_company':
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(await analyzeEnterpriseCompany(args), null, 2)
+              }
+            ]
+          };
 
-      case 'derive_enterprise_evaluation_logic':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(await deriveEnterpriseEvaluationLogic(args), null, 2)
-            }
-          ]
-        };
+        case 'derive_enterprise_evaluation_logic':
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(await deriveEnterpriseEvaluationLogic(args), null, 2)
+              }
+            ]
+          };
 
-      case 'map_experience_to_enterprise':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(await mapExperienceToEnterprise(args), null, 2)
-            }
-          ]
-        };
+        case 'map_experience_to_enterprise':
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(await mapExperienceToEnterprise(args), null, 2)
+              }
+            ]
+          };
 
-      case 'design_question_strategy':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(await designQuestionStrategy(args), null, 2)
-            }
-          ]
-        };
+        case 'design_question_strategy':
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(await designQuestionStrategy(args), null, 2)
+              }
+            ]
+          };
 
-      case 'generate_enterprise_essay':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(await generateEnterpriseEssay(args), null, 2)
-            }
-          ]
-        };
+        case 'generate_enterprise_essay':
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(await generateEnterpriseEssay(args), null, 2)
+              }
+            ]
+          };
 
-      case 'simulate_enterprise_reviewer':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(await simulateEnterpriseReviewer(args), null, 2)
-            }
-          ]
-        };
+        case 'simulate_enterprise_reviewer':
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(await simulateEnterpriseReviewer(args), null, 2)
+              }
+            ]
+          };
 
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ error: error.message }, null, 2)
+          }
+        ],
+        isError: true
+      };
     }
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }
-      ],
-      isError: true
-    };
   }
-  }
-);
+});
 
 // Resources 목록 핸들러 등록
-server.setRequestHandler(
-  { method: 'resources/list' },
-  async () => ({
+server.setRequestHandler({
+  method: 'resources/list',
+  handler: async (request) => ({
     resources: [
       {
         uri: 'resource://samsung-evaluation-logic',
@@ -324,12 +324,12 @@ server.setRequestHandler(
       }
     ]
   })
-);
+});
 
 // Resource 읽기 핸들러 등록
-server.setRequestHandler(
-  { method: 'resources/read' },
-  async (request) => {
+server.setRequestHandler({
+  method: 'resources/read',
+  handler: async (request) => {
     const { uri } = request.params;
 
     try {
@@ -369,12 +369,12 @@ server.setRequestHandler(
       };
     }
   }
-);
+});
 
 // Prompts 목록 핸들러 등록
-server.setRequestHandler(
-  { method: 'prompts/list' },
-  async () => ({
+server.setRequestHandler({
+  method: 'prompts/list',
+  handler: async (request) => ({
     prompts: [
       {
         name: '자소서_작성_가이드',
@@ -394,7 +394,7 @@ server.setRequestHandler(
       }
     ]
   })
-);
+});
 
 
 // GET /mcp - 서버 메타데이터 반환 (Play MCP 정보 조회용)
