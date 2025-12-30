@@ -49,6 +49,7 @@ const server = new Server(
     capabilities: {
       tools: {},
       resources: {},
+      prompts: {},
     },
   }
 );
@@ -349,12 +350,78 @@ server.setRequestHandler(
   }
 );
 
+// Prompts 등록
+server.setRequestHandler(
+  {
+    method: 'prompts/list'
+  },
+  async () => ({
+    prompts: [
+      {
+        name: '자소서_작성_가이드',
+        description: '대기업 자소서 작성의 전체적인 가이드를 제공합니다.',
+        arguments: [
+          {
+            name: 'company',
+            description: '대상 기업명 (삼성전자 또는 SK)',
+            required: true
+          },
+          {
+            name: 'role',
+            description: '지원 직무',
+            required: false
+          }
+        ]
+      }
+    ]
+  })
+);
+
+// 헬퍼 함수: 등록된 핸들러 호출
+async function callHandler(handlerName, params = {}) {
+  try {
+    // MCP SDK Server의 핸들러 맵에 직접 접근 시도
+    if (server._requestHandlers && typeof server._requestHandlers.get === 'function') {
+      const handler = server._requestHandlers.get(handlerName);
+      if (handler) {
+        return await handler({ params });
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error calling handler ${handlerName}:`, error);
+    return null;
+  }
+}
+
+// GET /mcp - 서버 메타데이터 반환 (Play MCP 정보 조회용)
+app.get('/mcp', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
+  
+  res.json({
+    protocolVersion: '2025-03-26',
+    name: 'enterprise-essay-expert-mcp',
+    version: '1.0.0',
+    capabilities: {
+      tools: {},
+      resources: {},
+      prompts: {}
+    },
+    serverInfo: {
+      name: 'enterprise-essay-expert-mcp',
+      version: '1.0.0'
+    }
+  });
+});
+
 // HTTP 엔드포인트 (Streamable HTTP) - JSON-RPC 2.0
 app.post('/mcp', async (req, res) => {
   // Streamable HTTP를 위한 keep-alive 설정
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Keep-Alive', 'timeout=60');
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
   
   try {
     // JSON-RPC 2.0 요청 처리
@@ -377,7 +444,8 @@ app.post('/mcp', async (req, res) => {
           protocolVersion: '2025-03-26',
           capabilities: {
             tools: {},
-            resources: {}
+            resources: {},
+            prompts: {}
           },
           serverInfo: {
             name: 'enterprise-essay-expert-mcp',
@@ -388,10 +456,18 @@ app.post('/mcp', async (req, res) => {
         
       case 'tools/list':
         // Tools 목록 반환
-        const toolsListHandler = server._requestHandlers?.get('tools/list');
-        if (toolsListHandler) {
-          result = await toolsListHandler({ params: {} });
-        } else {
+        // ListToolsRequestSchema로 등록된 핸들러는 직접 호출
+        try {
+          const handler = server._requestHandlers?.get(ListToolsRequestSchema);
+          if (handler) {
+            result = await handler({ params: {} });
+          } else {
+            result = await callHandler('tools/list');
+          }
+        } catch (e) {
+          result = await callHandler('tools/list');
+        }
+        if (!result) {
           // Fallback: 직접 반환
           result = {
             tools: [
@@ -479,10 +555,17 @@ app.post('/mcp', async (req, res) => {
           throw new Error('Tool name is required');
         }
         
-        const toolCallHandler = server._requestHandlers?.get('tools/call');
-        if (toolCallHandler) {
-          result = await toolCallHandler({ params: { name, arguments: args } });
-        } else {
+        try {
+          const toolCallHandler = server._requestHandlers?.get(CallToolRequestSchema);
+          if (toolCallHandler) {
+            result = await toolCallHandler({ params: { name, arguments: args } });
+          } else {
+            result = await callHandler('tools/call', { name, arguments: args });
+          }
+        } catch (e) {
+          result = await callHandler('tools/call', { name, arguments: args });
+        }
+        if (!result) {
           // Fallback: 직접 호출
           let toolResult;
           switch (name) {
@@ -520,10 +603,8 @@ app.post('/mcp', async (req, res) => {
         
       case 'resources/list':
         // Resources 목록 반환
-        const resourcesListHandler = server._requestHandlers?.get('resources/list');
-        if (resourcesListHandler) {
-          result = await resourcesListHandler({ params: {} });
-        } else {
+        result = await callHandler('resources/list');
+        if (!result) {
           // Fallback: 직접 반환
           result = {
             resources: [
@@ -557,10 +638,8 @@ app.post('/mcp', async (req, res) => {
           throw new Error('Resource URI is required');
         }
         
-        const resourcesReadHandler = server._requestHandlers?.get('resources/read');
-        if (resourcesReadHandler) {
-          result = await resourcesReadHandler({ params: { uri } });
-        } else {
+        result = await callHandler('resources/read', { uri });
+        if (!result) {
           // Fallback: 직접 호출
           let content;
           switch (uri) {
@@ -582,6 +661,34 @@ app.post('/mcp', async (req, res) => {
                 uri,
                 mimeType: 'application/json',
                 text: JSON.stringify(content, null, 2)
+              }
+            ]
+          };
+        }
+        break;
+        
+      case 'prompts/list':
+        // Prompts 목록 반환
+        result = await callHandler('prompts/list');
+        if (!result) {
+          // Fallback: 직접 반환
+          result = {
+            prompts: [
+              {
+                name: '자소서_작성_가이드',
+                description: '대기업 자소서 작성의 전체적인 가이드를 제공합니다.',
+                arguments: [
+                  {
+                    name: 'company',
+                    description: '대상 기업명 (삼성전자 또는 SK)',
+                    required: true
+                  },
+                  {
+                    name: 'role',
+                    description: '지원 직무',
+                    required: false
+                  }
+                ]
               }
             ]
           };
