@@ -60,6 +60,7 @@ app.post("/mcp", (req, res) => {
 
 // ✅ Fly.io listen
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ MCP Server running on port ${PORT}`);
 });
