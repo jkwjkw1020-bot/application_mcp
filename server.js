@@ -7,8 +7,6 @@
  */
 
 import express from 'express';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 // Tool 핸들러들
 import { analyzeEnterpriseCompany } from './tools/analyzeEnterpriseCompany.js';
@@ -37,21 +35,6 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-
-// MCP 서버 인스턴스
-const server = new Server(
-  {
-    name: 'enterprise-essay-expert-mcp',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-      resources: {},
-      prompts: {},
-    },
-  }
-);
 
 // Tools 목록 정의
 const toolsList = [
@@ -189,102 +172,72 @@ const toolsList = [
   }
 ];
 
-// Initialize 핸들러 등록
-server.setRequestHandler({
-  method: 'initialize',
-  handler: async (request) => ({
-    protocolVersion: '2025-03-26',
-    serverInfo: {
-      name: 'enterprise-essay-expert-mcp',
-      version: '1.0.0'
-    },
-    capabilities: {
-      tools: {},
-      resources: {},
-      prompts: {}
+// MCP Method Handlers - method literal 기반 등록
+const mcpHandlers = {
+  // initialize 메서드 핸들러
+  'initialize': async (params) => {
+    return {
+      protocolVersion: '2025-03-26',
+      serverInfo: {
+        name: 'enterprise-essay-expert-mcp',
+        version: '1.0.0'
+      },
+      capabilities: {
+        tools: {},
+        resources: {},
+        prompts: {}
+      }
+    };
+  },
+
+  // tools/list 메서드 핸들러
+  'tools/list': async (params) => {
+    return {
+      tools: toolsList
+    };
+  },
+
+  // tools/call 메서드 핸들러
+  'tools/call': async (params) => {
+    const { name, arguments: args } = params || {};
+
+    if (!name) {
+      throw new Error('Tool name is required');
     }
-  })
-});
-
-// Tools 목록 핸들러 등록
-server.setRequestHandler({
-  method: 'tools/list',
-  handler: async (request) => ({
-    tools: toolsList
-  })
-});
-
-// Tool 실행 핸들러 등록
-server.setRequestHandler({
-  method: 'tools/call',
-  handler: async (request) => {
-    const { name, arguments: args } = request.params;
 
     try {
+      let toolResult;
       switch (name) {
         case 'analyze_enterprise_company':
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(await analyzeEnterpriseCompany(args), null, 2)
-              }
-            ]
-          };
-
+          toolResult = await analyzeEnterpriseCompany(args);
+          break;
         case 'derive_enterprise_evaluation_logic':
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(await deriveEnterpriseEvaluationLogic(args), null, 2)
-              }
-            ]
-          };
-
+          toolResult = await deriveEnterpriseEvaluationLogic(args);
+          break;
         case 'map_experience_to_enterprise':
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(await mapExperienceToEnterprise(args), null, 2)
-              }
-            ]
-          };
-
+          toolResult = await mapExperienceToEnterprise(args);
+          break;
         case 'design_question_strategy':
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(await designQuestionStrategy(args), null, 2)
-              }
-            ]
-          };
-
+          toolResult = await designQuestionStrategy(args);
+          break;
         case 'generate_enterprise_essay':
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(await generateEnterpriseEssay(args), null, 2)
-              }
-            ]
-          };
-
+          toolResult = await generateEnterpriseEssay(args);
+          break;
         case 'simulate_enterprise_reviewer':
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(await simulateEnterpriseReviewer(args), null, 2)
-              }
-            ]
-          };
-
+          toolResult = await simulateEnterpriseReviewer(args);
+          break;
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(toolResult, null, 2)
+          }
+        ]
+      };
     } catch (error) {
       return {
         content: [
@@ -296,41 +249,40 @@ server.setRequestHandler({
         isError: true
       };
     }
-  }
-});
+  },
 
-// Resources 목록 핸들러 등록
-server.setRequestHandler({
-  method: 'resources/list',
-  handler: async (request) => ({
-    resources: [
-      {
-        uri: 'resource://samsung-evaluation-logic',
-        name: '삼성 채용 평가 로직',
-        description: '삼성전자의 서류 평가 기준과 평가 로직',
-        mimeType: 'application/json'
-      },
-      {
-        uri: 'resource://sk-evaluation-logic',
-        name: 'SK 채용 평가 로직',
-        description: 'SK의 서류 평가 기준과 평가 로직',
-        mimeType: 'application/json'
-      },
-      {
-        uri: 'resource://rejection-patterns',
-        name: '대기업 자소서 탈락 패턴',
-        description: '대기업 자소서에서 즉시 탈락되는 주요 패턴들',
-        mimeType: 'application/json'
-      }
-    ]
-  })
-});
+  // resources/list 메서드 핸들러
+  'resources/list': async (params) => {
+    return {
+      resources: [
+        {
+          uri: 'resource://samsung-evaluation-logic',
+          name: '삼성 채용 평가 로직',
+          description: '삼성전자의 서류 평가 기준과 평가 로직',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'resource://sk-evaluation-logic',
+          name: 'SK 채용 평가 로직',
+          description: 'SK의 서류 평가 기준과 평가 로직',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'resource://rejection-patterns',
+          name: '대기업 자소서 탈락 패턴',
+          description: '대기업 자소서에서 즉시 탈락되는 주요 패턴들',
+          mimeType: 'application/json'
+        }
+      ]
+    };
+  },
 
-// Resource 읽기 핸들러 등록
-server.setRequestHandler({
-  method: 'resources/read',
-  handler: async (request) => {
-    const { uri } = request.params;
+  // resources/read 메서드 핸들러 (선택적)
+  'resources/read': async (params) => {
+    const { uri } = params || {};
+    if (!uri) {
+      throw new Error('Resource URI is required');
+    }
 
     try {
       let content;
@@ -368,33 +320,32 @@ server.setRequestHandler({
         ]
       };
     }
-  }
-});
+  },
 
-// Prompts 목록 핸들러 등록
-server.setRequestHandler({
-  method: 'prompts/list',
-  handler: async (request) => ({
-    prompts: [
-      {
-        name: '자소서_작성_가이드',
-        description: '대기업 자소서 작성의 전체적인 가이드를 제공합니다.',
-        arguments: [
-          {
-            name: 'company',
-            description: '대상 기업명 (삼성전자 또는 SK)',
-            required: true
-          },
-          {
-            name: 'role',
-            description: '지원 직무',
-            required: false
-          }
-        ]
-      }
-    ]
-  })
-});
+  // prompts/list 메서드 핸들러
+  'prompts/list': async (params) => {
+    return {
+      prompts: [
+        {
+          name: '자소서_작성_가이드',
+          description: '대기업 자소서 작성의 전체적인 가이드를 제공합니다.',
+          arguments: [
+            {
+              name: 'company',
+              description: '대상 기업명 (삼성전자 또는 SK)',
+              required: true
+            },
+            {
+              name: 'role',
+              description: '지원 직무',
+              required: false
+            }
+          ]
+        }
+      ]
+    };
+  }
+};
 
 
 // GET /mcp - 서버 메타데이터 반환 (Play MCP 정보 조회용)
@@ -438,159 +389,18 @@ app.post('/mcp', async (req, res) => {
       });
     }
 
-    let result;
+    // method literal 기반 handler 호출
+    const handler = mcpHandlers[method];
     
-    // MCP 프로토콜 메서드 라우팅
-    switch (method) {
-      case 'initialize':
-        result = {
-          protocolVersion: '2025-03-26',
-          capabilities: {
-            tools: {},
-            resources: {},
-            prompts: {}
-          },
-          serverInfo: {
-            name: 'enterprise-essay-expert-mcp',
-            version: '1.0.0'
-          }
-        };
-        break;
-        
-      case 'tools/list':
-        // Tools 목록 반환
-        result = { tools: toolsList };
-        break;
-        
-      case 'tools/call':
-        // Tool 실행
-        const { name, arguments: args } = params || {};
-        if (!name) {
-          throw new Error('Tool name is required');
-        }
-        
-        let toolResult;
-        switch (name) {
-          case 'analyze_enterprise_company':
-            toolResult = await analyzeEnterpriseCompany(args);
-            break;
-          case 'derive_enterprise_evaluation_logic':
-            toolResult = await deriveEnterpriseEvaluationLogic(args);
-            break;
-          case 'map_experience_to_enterprise':
-            toolResult = await mapExperienceToEnterprise(args);
-            break;
-          case 'design_question_strategy':
-            toolResult = await designQuestionStrategy(args);
-            break;
-          case 'generate_enterprise_essay':
-            toolResult = await generateEnterpriseEssay(args);
-            break;
-          case 'simulate_enterprise_reviewer':
-            toolResult = await simulateEnterpriseReviewer(args);
-            break;
-          default:
-            throw new Error(`Unknown tool: ${name}`);
-        }
-        result = {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(toolResult, null, 2)
-            }
-          ]
-        };
-        break;
-        
-      case 'resources/list':
-        // Resources 목록 반환
-        result = {
-          resources: [
-            {
-              uri: 'resource://samsung-evaluation-logic',
-              name: '삼성 채용 평가 로직',
-              description: '삼성전자의 서류 평가 기준과 평가 로직',
-              mimeType: 'application/json'
-            },
-            {
-              uri: 'resource://sk-evaluation-logic',
-              name: 'SK 채용 평가 로직',
-              description: 'SK의 서류 평가 기준과 평가 로직',
-              mimeType: 'application/json'
-            },
-            {
-              uri: 'resource://rejection-patterns',
-              name: '대기업 자소서 탈락 패턴',
-              description: '대기업 자소서에서 즉시 탈락되는 주요 패턴들',
-              mimeType: 'application/json'
-            }
-          ]
-        };
-        break;
-        
-      case 'resources/read':
-        // Resource 읽기
-        const { uri } = params || {};
-        if (!uri) {
-          throw new Error('Resource URI is required');
-        }
-        
-        let content;
-        switch (uri) {
-          case 'resource://samsung-evaluation-logic':
-            content = getSamsungEvaluationLogic();
-            break;
-          case 'resource://sk-evaluation-logic':
-            content = getSKEvaluationLogic();
-            break;
-          case 'resource://rejection-patterns':
-            content = getRejectionPatterns();
-            break;
-          default:
-            throw new Error(`Unknown resource: ${uri}`);
-        }
-        result = {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify(content, null, 2)
-            }
-          ]
-        };
-        break;
-        
-      case 'prompts/list':
-        // Prompts 목록 반환
-        result = {
-          prompts: [
-            {
-              name: '자소서_작성_가이드',
-              description: '대기업 자소서 작성의 전체적인 가이드를 제공합니다.',
-              arguments: [
-                {
-                  name: 'company',
-                  description: '대상 기업명 (삼성전자 또는 SK)',
-                  required: true
-                },
-                {
-                  name: 'role',
-                  description: '지원 직무',
-                  required: false
-                }
-              ]
-            }
-          ]
-        };
-        break;
-        
-      default:
-        return res.json({
-          jsonrpc: '2.0',
-          id,
-          error: { code: -32601, message: `Method not found: ${method}` }
-        });
+    if (!handler) {
+      return res.json({
+        jsonrpc: '2.0',
+        id,
+        error: { code: -32601, message: `Method not found: ${method}` }
+      });
     }
+
+    const result = await handler(params);
     
     res.json({
       jsonrpc: '2.0',
@@ -614,27 +424,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'enterprise-essay-expert-mcp' });
 });
 
-// 서버 시작
+// 서버 시작 - Fly.io 환경에서는 무조건 HTTP 서버 실행
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; // Railway 배포를 위해 모든 인터페이스에 바인딩
+const HOST = '0.0.0.0';
 
-// Railway 환경 감지: PORT 환경변수가 있으면 HTTP 모드로 실행
-// 로컬 개발 시 MCP_MODE 환경변수로 제어 가능
-const isRailway = !!process.env.PORT;
-const isHttpMode = process.env.MCP_MODE === 'http' || isRailway;
-
-if (isHttpMode) {
-  // HTTP 모드 (Railway 배포 및 Remote MCP Server)
-  app.listen(PORT, HOST, () => {
-    console.log(`🚀 MCP Server running on http://${HOST}:${PORT}`);
-    console.log(`✅ Health check: http://${HOST}:${PORT}/health`);
-    console.log(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
-    console.log(`🌐 Railway URL: https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.up.railway.app'}/mcp`);
-  });
-} else {
-  // Stdio 모드 (로컬 개발, MCP Inspector 호환)
-  const transport = new StdioServerTransport();
-  server.connect(transport);
-  console.error('MCP Server running in stdio mode');
-}
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 MCP Server running on http://${HOST}:${PORT}`);
+  console.log(`✅ Health check: http://${HOST}:${PORT}/health`);
+  console.log(`📡 MCP endpoint: http://${HOST}:${PORT}/mcp`);
+  console.log(`🌐 Fly.io URL: https://enterprise-essay-mcp.fly.dev/mcp`);
+});
 
