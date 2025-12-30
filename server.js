@@ -22,24 +22,6 @@ import { getSamsungEvaluationLogic } from './resources/samsungEvaluationLogic.js
 import { getSKEvaluationLogic } from './resources/skEvaluationLogic.js';
 import { getRejectionPatterns } from './resources/rejectionPatterns.js';
 
-// MCP 서버 인스턴스 생성
-const server = new Server(
-  {
-    name: 'enterprise-essay-expert-mcp',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-      resources: {},
-      prompts: {},
-    },
-  }
-);
-
-// 핸들러 맵 (HTTP POST 요청 처리용)
-const handlerMap = new Map();
-
 // Tools 목록 정의
 const toolsList = [
   {
@@ -176,8 +158,44 @@ const toolsList = [
   }
 ];
 
+// MCP 서버 인스턴스 생성 (HTTP 서버 방식)
+const server = new Server(
+  {
+    name: 'enterprise-essay-expert-mcp',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+      resources: {},
+      prompts: {},
+    },
+  }
+);
+
+// 핸들러 맵 (HTTP POST 요청 처리용)
+const handlerMap = new Map();
+
 // initialize 메서드 핸들러 등록
-const initializeHandler = async () => {
+server.registerHandler({
+  method: 'initialize',
+  handler: async () => {
+    return {
+      protocolVersion: '2025-03-26',
+      serverInfo: {
+        name: 'enterprise-essay-expert-mcp',
+        version: '1.0.0'
+      },
+      capabilities: {
+        tools: {},
+        resources: {},
+        prompts: {}
+      }
+    };
+  }
+});
+
+handlerMap.set('initialize', async () => {
   return {
     protocolVersion: '2025-03-26',
     serverInfo: {
@@ -190,29 +208,82 @@ const initializeHandler = async () => {
       prompts: {}
     }
   };
-};
-
-server.registerHandler({
-  method: 'initialize',
-  handler: initializeHandler
 });
-handlerMap.set('initialize', initializeHandler);
 
 // tools/list 메서드 핸들러 등록
-const toolsListHandler = async () => {
+server.registerHandler({
+  method: 'tools/list',
+  handler: async () => {
+    return {
+      tools: toolsList
+    };
+  }
+});
+
+handlerMap.set('tools/list', async () => {
   return {
     tools: toolsList
   };
-};
-
-server.registerHandler({
-  method: 'tools/list',
-  handler: toolsListHandler
 });
-handlerMap.set('tools/list', toolsListHandler);
 
 // tools/call 메서드 핸들러 등록
-const toolsCallHandler = async (request) => {
+server.registerHandler({
+  method: 'tools/call',
+  handler: async (request) => {
+    const { name, arguments: args } = request.params || {};
+
+    if (!name) {
+      throw new Error('Tool name is required');
+    }
+
+    try {
+      let toolResult;
+      switch (name) {
+        case 'analyze_enterprise_company':
+          toolResult = await analyzeEnterpriseCompany(args);
+          break;
+        case 'derive_enterprise_evaluation_logic':
+          toolResult = await deriveEnterpriseEvaluationLogic(args);
+          break;
+        case 'map_experience_to_enterprise':
+          toolResult = await mapExperienceToEnterprise(args);
+          break;
+        case 'design_question_strategy':
+          toolResult = await designQuestionStrategy(args);
+          break;
+        case 'generate_enterprise_essay':
+          toolResult = await generateEnterpriseEssay(args);
+          break;
+        case 'simulate_enterprise_reviewer':
+          toolResult = await simulateEnterpriseReviewer(args);
+          break;
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(toolResult, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ error: error.message }, null, 2)
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+});
+
+handlerMap.set('tools/call', async (request) => {
   const { name, arguments: args } = request.params || {};
 
   if (!name) {
@@ -263,16 +334,38 @@ const toolsCallHandler = async (request) => {
       isError: true
     };
   }
-};
-
-server.registerHandler({
-  method: 'tools/call',
-  handler: toolsCallHandler
 });
-handlerMap.set('tools/call', toolsCallHandler);
 
 // resources/list 메서드 핸들러 등록
-const resourcesListHandler = async () => {
+server.registerHandler({
+  method: 'resources/list',
+  handler: async () => {
+    return {
+      resources: [
+        {
+          uri: 'resource://samsung-evaluation-logic',
+          name: '삼성 채용 평가 로직',
+          description: '삼성전자의 서류 평가 기준과 평가 로직',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'resource://sk-evaluation-logic',
+          name: 'SK 채용 평가 로직',
+          description: 'SK의 서류 평가 기준과 평가 로직',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'resource://rejection-patterns',
+          name: '대기업 자소서 탈락 패턴',
+          description: '대기업 자소서에서 즉시 탈락되는 주요 패턴들',
+          mimeType: 'application/json'
+        }
+      ]
+    };
+  }
+});
+
+handlerMap.set('resources/list', async () => {
   return {
     resources: [
       {
@@ -295,16 +388,36 @@ const resourcesListHandler = async () => {
       }
     ]
   };
-};
-
-server.registerHandler({
-  method: 'resources/list',
-  handler: resourcesListHandler
 });
-handlerMap.set('resources/list', resourcesListHandler);
 
 // prompts/list 메서드 핸들러 등록
-const promptsListHandler = async () => {
+server.registerHandler({
+  method: 'prompts/list',
+  handler: async () => {
+    return {
+      prompts: [
+        {
+          name: '자소서_작성_가이드',
+          description: '대기업 자소서 작성의 전체적인 가이드를 제공합니다.',
+          arguments: [
+            {
+              name: 'company',
+              description: '대상 기업명 (삼성전자 또는 SK)',
+              required: true
+            },
+            {
+              name: 'role',
+              description: '지원 직무',
+              required: false
+            }
+          ]
+        }
+      ]
+    };
+  }
+});
+
+handlerMap.set('prompts/list', async () => {
   return {
     prompts: [
       {
@@ -325,13 +438,7 @@ const promptsListHandler = async () => {
       }
     ]
   };
-};
-
-server.registerHandler({
-  method: 'prompts/list',
-  handler: promptsListHandler
 });
-handlerMap.set('prompts/list', promptsListHandler);
 
 // Express 앱 생성 (HTTP 서버용)
 const app = express();
