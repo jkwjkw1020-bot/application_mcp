@@ -1,27 +1,6 @@
 {
-  "name": "enterprise-essay-expert-mcp",
-  "version": "1.0.0",
-  "description": "기업 분석 자소서 전문가 MCP 서버",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
-  },
-  "keywords": [
-    "mcp",
-    "enterprise",
-    "essay",
-    "recruitment"
-  ],
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "express": "^4.18.2"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "type": "module",
+    "scripts": {
+      "start": "node server.js"
+    }
   }
-}
-
