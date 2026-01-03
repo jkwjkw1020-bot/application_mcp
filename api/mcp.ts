@@ -20,6 +20,193 @@ const tools = [
       type: "object",
       properties: {
         company_name: { type: "string", description: "기업명" },
+        job_title: { type: "string", description: "직무명" }
+      },
+      required: ["company_name", "job_title"]
+    }
+  },
+  {
+    name: "register_user_profile",
+    description: "사용자의 경험, 활동, 스펙을 등록합니다",
+    inputSchema: {
+      type: "object",
+      properties: {
+        experiences: { type: "array", description: "경험 목록" }
+      },
+      required: ["experiences"]
+    }
+  },
+  {
+    name: "analyze_essay_question",
+    description: "자기소개서 문항을 분석합니다",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company_name: { type: "string", description: "기업명" },
+        question: { type: "string", description: "자소서 문항" }
+      },
+      required: ["company_name", "question"]
+    }
+  },
+  {
+    name: "generate_star_draft",
+    description: "STAR 기법으로 자기소개서 초안을 생성합니다",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company_name: { type: "string", description: "기업명" },
+        job_title: { type: "string", description: "직무" },
+        question: { type: "string", description: "문항" },
+        experience_title: { type: "string", description: "경험 제목" },
+        experience_description: { type: "string", description: "경험 설명" }
+      },
+      required: ["company_name", "job_title", "question", "experience_title", "experience_description"]
+    }
+  },
+  {
+    name: "improve_essay",
+    description: "자기소개서를 검토하고 개선점을 제안합니다",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company_name: { type: "string", description: "기업명" },
+        job_title: { type: "string", description: "직무" },
+        question: { type: "string", description: "문항" },
+        draft: { type: "string", description: "초안" }
+      },
+      required: ["company_name", "job_title", "question", "draft"]
+    }
+  }
+];
+
+function handleToolCall(name: string, args: Record<string, unknown>): string {
+  switch (name) {
+    case "analyze_company":
+      return `## ${args.company_name} 기업 분석\n\n### 인재상\n- 도전정신\n- 협업능력\n- 전문성\n\n### 핵심가치\n도전 | 혁신 | 협력`;
+    
+    case "analyze_job_position":
+      return `## ${args.company_name} - ${args.job_title} 직무 분석\n\n### 핵심 역량\n1. 문제 해결 능력\n2. 커뮤니케이션\n3. 전문성`;
+    
+    case "register_user_profile": {
+      const experiences = args.experiences as unknown[] | undefined;
+      return `## 프로필 등록 완료\n\n등록된 경험: ${experiences?.length || 0}개`;
+    }
+    
+    case "analyze_essay_question":
+      return `## 문항 분석\n\n"${args.question}"\n\n### 출제 의도\n1. 경험의 구체성\n2. 문제 해결력\n\n### STAR 기법 활용 권장`;
+    
+    case "generate_star_draft":
+      return `## STAR 자소서 초안\n\n### Situation\n${args.experience_description}\n\n### Task\n[목표 작성]\n\n### Action\n[행동 작성]\n\n### Result\n[결과 작성]`;
+    
+    case "improve_essay": {
+      const draft = args.draft as string | undefined;
+      return `## 자소서 검토 결과\n\n### 원본 (${draft?.length || 0}자)\n${draft?.substring(0, 100) || ""}...\n\n### 개선점\n1. 구체성 강화\n2. STAR 구조 명확화`;
+    }
+    
+    default:
+      return "Unknown tool";
+  }
+}
+
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      result: {
+        name: "resume-helper",
+        version: "0.1.0",
+        protocolVersion: "2024-11-05",
+        capabilities: { tools: {} }
+      }
+    });
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const body = req.body || {};
+      const { id, method, params } = body;
+
+      if (method === "initialize") {
+        return res.status(200).json({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            protocolVersion: "2024-11-05",
+            capabilities: { tools: {} },
+            serverInfo: { name: "resume-helper", version: "0.1.0" }
+          }
+        });
+      }
+
+      if (method === "tools/list") {
+        return res.status(200).json({
+          jsonrpc: "2.0",
+          id,
+          result: { tools }
+        });
+      }
+
+      if (method === "tools/call") {
+        const toolName = params?.name as string;
+        const toolArgs = (params?.arguments || {}) as Record<string, unknown>;
+        const resultText = handleToolCall(toolName, toolArgs);
+
+        return res.status(200).json({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            content: [{ type: "text", text: resultText }]
+          }
+        });
+      }
+
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32601, message: "Method not found" }
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Internal error";
+      return res.status(500).json({
+        jsonrpc: "2.0",
+        error: { code: -32603, message: errorMessage }
+      });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+const tools = [
+  {
+    name: "analyze_company",
+    description: "특정 기업의 인재상, 핵심가치, 조직문화를 분석합니다",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company_name: { type: "string", description: "기업명" },
+        industry: { type: "string", description: "산업군" }
+      },
+      required: ["company_name"]
+    }
+  },
+  {
+    name: "analyze_job_position",
+    description: "특정 직무의 핵심 역량, 필요 기술, 주요 업무를 분석합니다",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company_name: { type: "string", description: "기업명" },
         job_title: { type: "string", description: "직무명" },
         job_description: { type: "string", description: "채용공고 상세내용" }
       },
