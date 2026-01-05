@@ -144,6 +144,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { id, method, params } = body as { id?: unknown; method?: string; params?: any };
 
+      // Some clients send a notification without id right after initialize
+      if (!id && method === "notifications/initialized") {
+        log("notification initialized (ignored)");
+        return res.status(200).end();
+      }
+
       if (method === "initialize") {
         const response = {
           jsonrpc: "2.0",
