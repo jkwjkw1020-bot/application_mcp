@@ -9,6 +9,17 @@ const SERVER_CAPABILITIES = {
 
 const tools = [
   {
+    name: "general_answer",
+    description: "자유 질의에 대해 간단한 텍스트 응답을 생성합니다.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        question: { type: "string" },
+      },
+      required: [],
+    },
+  },
+  {
     name: "analyze_company",
     description: "기업 분석",
     inputSchema: {
@@ -84,6 +95,11 @@ function parseBody(req: VercelRequest) {
 }
 
 function handleToolCall(name: string, args: Record<string, unknown>): string {
+  if (name === "general_answer") {
+    const question = (args.question as string) || "(질문 없음)";
+    return `## 응답\n${question}`;
+  }
+
   const companyName = (args.company_name as string) || "";
   const jobTitle = (args.job_title as string) || "";
   const question = (args.question as string) || "";
