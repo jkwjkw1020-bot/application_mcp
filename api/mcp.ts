@@ -144,9 +144,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { id, method, params } = body as { id?: unknown; method?: string; params?: any };
 
-      // Some clients send a notification without id right after initialize
-      if (!id && method === "notifications/initialized") {
-        log("notification initialized (ignored)");
+      // 일부 클라이언트는 initialize 직후 notifications/* 형태를 id 없이 보냅니다.
+      if (method && method.startsWith("notifications/")) {
+        log("notification ignored", { method, id });
         return res.status(200).end();
       }
 
