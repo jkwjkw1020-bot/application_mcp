@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const PROTOCOL_VERSION = "2025-03-26";
+// PlayMCP 클라이언트가 2025-06-18로 initialize를 보내므로 동일 버전으로 응답
+const PROTOCOL_VERSION = "2025-06-18";
 
 const tools = [
   {
