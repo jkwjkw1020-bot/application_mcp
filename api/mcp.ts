@@ -126,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           name: "resume-helper",
           version: "0.1.0",
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools: {} },
+          capabilities: { tools },
         },
       });
     }
@@ -143,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id,
           result: {
             protocolVersion: PROTOCOL_VERSION,
-            capabilities: { tools: {} },
+            capabilities: { tools },
             serverInfo: { name: "resume-helper", version: "0.1.0" },
           },
         };
