@@ -3,8 +3,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // PlayMCP 클라이언트가 2025-06-18로 initialize를 보내므로 동일 버전으로 응답
 const PROTOCOL_VERSION = "2025-06-18";
 const SERVER_CAPABILITIES = {
-  // 최소한의 tools capability만 광고 (추가 필드 없음)
-  tools: {},
+  // tools capability 명시 (리스트 변경 여부 알림)
+  tools: {
+    listChanged: true,
+  },
 };
 
 const tools = [
