@@ -2,6 +2,12 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 // PlayMCP 클라이언트가 2025-06-18로 initialize를 보내므로 동일 버전으로 응답
 const PROTOCOL_VERSION = "2025-06-18";
+const SERVER_CAPABILITIES = {
+  // 표준 스펙에 맞춰 tools capability를 명시합니다.
+  tools: {
+    listChanged: true,
+  },
+};
 
 const tools = [
   {
@@ -127,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           name: "resume-helper",
           version: "0.1.0",
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools },
+          capabilities: SERVER_CAPABILITIES,
         },
       });
     }
@@ -144,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id,
           result: {
             protocolVersion: PROTOCOL_VERSION,
-            capabilities: { tools },
+            capabilities: SERVER_CAPABILITIES,
             serverInfo: { name: "resume-helper", version: "0.1.0" },
           },
         };
