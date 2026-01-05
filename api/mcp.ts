@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+const PROTOCOL_VERSION = "2025-03-26";
+
 const tools = [
   { name: "analyze_company", description: "기업 분석", inputSchema: { type: "object", properties: { company_name: { type: "string" } }, required: ["company_name"] } },
   { name: "analyze_job_position", description: "직무 분석", inputSchema: { type: "object", properties: { company_name: { type: "string" }, job_title: { type: "string" } }, required: ["company_name", "job_title"] } },
@@ -37,12 +39,30 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   if (req.method === "GET") {
-    return res.status(200).json({ jsonrpc: "2.0", result: { name: "resume-helper", version: "0.1.0", protocolVersion: "2024-11-05", capabilities: { tools: {} } } });
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      result: {
+        name: "resume-helper",
+        version: "0.1.0",
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: { tools: {} },
+      },
+    });
   }
 
   if (req.method === "POST") {
     const { id, method, params } = req.body || {};
-    if (method === "initialize") return res.status(200).json({ jsonrpc: "2.0", id, result: { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "resume-helper", version: "0.1.0" } } });
+    if (method === "initialize") {
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          protocolVersion: PROTOCOL_VERSION,
+          capabilities: { tools: {} },
+          serverInfo: { name: "resume-helper", version: "0.1.0" },
+        },
+      });
+    }
     if (method === "tools/list") return res.status(200).json({ jsonrpc: "2.0", id, result: { tools } });
     if (method === "tools/call") {
       const text = handleToolCall(params?.name as string, (params?.arguments || {}) as Record<string, unknown>);
